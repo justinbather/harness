@@ -12,11 +12,12 @@ import (
 )
 
 type Harness struct {
-	kc     *kgo.Client
+	kc *kgo.Client
+	store
 	topics []kmsg.MetadataRequestTopic
 }
 
-func New(brokers []string) (*Harness, error) {
+func New(brokers ...string) (*Harness, error) {
 	kc, err := kgo.NewClient(kgo.SeedBrokers(brokers...), kgo.ConsumeResetOffset(kgo.NewOffset().AtStart()))
 	if err != nil {
 		return nil, err
@@ -77,10 +78,11 @@ func (h *Harness) Start(ctx context.Context) error {
 	return nil
 }
 
+// should spawn a goroutine per topic
+// this needs to save into an ephemeral storage in json?
 func (h *Harness) consume(ctx context.Context) {
 
 	log, _ := logger.FromCtx(ctx)
-	log.Info("consuming")
 	for {
 
 		fetches := h.kc.PollFetches(ctx)

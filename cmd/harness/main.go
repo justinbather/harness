@@ -4,17 +4,18 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"time"
 
-	"github.com/justinbather/harness"
+	"github.com/justinbather/harness/internal/harness"
 	"github.com/justinbather/harness/internal/logger"
+	"go.uber.org/zap"
 )
 
 func main() {
 	ctx := context.Background()
-	logger, ctx := logger.FromCtx(ctx)
+	log, ctx := logger.FromCtx(ctx)
 
-	brokers := []string{"localhost:9092"}
-	harness, err := harness.New(brokers)
+	harness, err := harness.New("localhost:9092")
 	if err != nil {
 		panic(err)
 	}
@@ -22,10 +23,12 @@ func main() {
 	sigs := make(chan os.Signal, 2)
 	signal.Notify(sigs, os.Interrupt)
 
+	go pollDB(harness)
+
 	harness.Start(ctx)
 
 	<-sigs
-	logger.Info("got shutdown signal")
+	log.Info("got shutdown signal")
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -34,7 +37,18 @@ func main() {
 
 	select {
 	case <-sigs:
-		logger.Info("got second interrupt; forcing shutdown")
+		log.Info("got second interrupt; forcing shutdown")
 	case <-done:
+	}
+}
+
+func pollDB(harness *harness.Harness) {
+	log, _ := logger.FromCtx(context.Background())
+	for {
+		time.Sleep(2 * time.Second)
+		topics := harness.ListTopics()
+		for t, size := range topics {
+			log.Info("topic", zap.String("topic", t), zap.Int("size", size))
+		}
 	}
 }
