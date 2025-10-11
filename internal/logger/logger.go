@@ -15,7 +15,7 @@ type logger struct {
 }
 
 func FromCtx(ctx context.Context) (Logger, context.Context) {
-	log := ctx.Value(ctxVal).(*logger)
+	log, _ := ctx.Value(ctxVal).(*logger)
 	if log == nil {
 		zlog, _ := zap.NewDevelopment()
 		log = &logger{z: zlog}
@@ -25,52 +25,42 @@ func FromCtx(ctx context.Context) (Logger, context.Context) {
 	return log, ctx
 }
 
-func F(key string, val any) Field {
-	return Field{key: key, val: val}
+func F(key string, val any) zap.Field {
+	return zap.Any(key, val)
 }
 
-type Field struct {
-	key string
-	val any
+func Err(err error) zap.Field {
+	return zap.Error(err)
 }
 
 type Logger interface {
-	Debug(msg string, fields ...Field)
-	Info(msg string, fields ...Field)
-	Warn(msg string, fields ...Field)
-	Error(msg string, fields ...Field)
+	Debug(msg string, fields ...zap.Field)
+	Info(msg string, fields ...zap.Field)
+	Warn(msg string, fields ...zap.Field)
+	Error(msg string, fields ...zap.Field)
 
-	With(ctx context.Context, fields ...Field) (Logger, context.Context)
+	With(ctx context.Context, fields ...zap.Field) (Logger, context.Context)
 }
 
-func (l *logger) Debug(msg string, fields ...Field) {
-	l.z.Debug(msg, convFields(fields...)...)
+func (l *logger) Debug(msg string, fields ...zap.Field) {
+	l.z.Debug(msg, fields...)
 }
-func (l *logger) Info(msg string, fields ...Field) {
-	l.z.Info(msg, convFields(fields...)...)
-}
-
-func (l *logger) Warn(msg string, fields ...Field) {
-	l.z.Warn(msg, convFields(fields...)...)
+func (l *logger) Info(msg string, fields ...zap.Field) {
+	l.z.Info(msg, fields...)
 }
 
-func (l *logger) Error(msg string, fields ...Field) {
-	l.z.Error(msg, convFields(fields...)...)
+func (l *logger) Warn(msg string, fields ...zap.Field) {
+	l.z.Warn(msg, fields...)
 }
 
-func (l *logger) With(ctx context.Context, fields ...Field) (Logger, context.Context) {
-	child := l.z.With(convFields(fields...)...)
+func (l *logger) Error(msg string, fields ...zap.Field) {
+	l.z.Error(msg, fields...)
+}
+
+func (l *logger) With(ctx context.Context, fields ...zap.Field) (Logger, context.Context) {
+	child := l.z.With(fields...)
 	logger := &logger{z: child}
 	ctx = context.WithValue(ctx, ctxVal, logger)
 	return logger, ctx
 
-}
-
-func convFields(fields ...Field) []zap.Field {
-	var conv []zap.Field
-	for _, f := range fields {
-		conv = append(conv, zap.Any(f.key, f.val))
-	}
-
-	return conv
 }
