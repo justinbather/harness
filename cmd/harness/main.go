@@ -14,8 +14,7 @@ func main() {
 	logger, ctx := logger.FromCtx(ctx)
 
 	brokers := []string{"localhost:9092"}
-	topics := []string{"user-events", "order-events", "payment-events", "notification-events", "audit-logs"}
-	harness, err := harness.New(brokers, topics)
+	harness, err := harness.New(brokers)
 	if err != nil {
 		panic(err)
 	}
