@@ -33,9 +33,13 @@ func main() {
 				Topic: topic,
 			}
 			client.Produce(ctx, r, func(r *kgo.Record, err error) {
-				log.Error("producing", zap.Error(err))
+				if err != nil {
+					log.Error("producing", zap.Error(err))
+				} else {
+					log.Info("produced message", logger.F("topic", topic))
+
+				}
 			})
-			log.Info("produced message", logger.F("topic", topic))
 		}
 	}
 
