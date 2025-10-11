@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/justinbather/harness/internal/harness"
@@ -64,6 +65,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) View() string {
 	s := "Kafka Topics\n\n"
+	s += "Topic name     Num Messages\n"
 	for i, topic := range m.topicList {
 		cursor := " "
 		if m.cursor == i {
@@ -90,6 +92,8 @@ func main() {
 
 	harness.Start(ctx)
 	defer harness.Shutdown(ctx)
+	// janky way to wa
+	time.Sleep(100 * time.Millisecond)
 
 	p := tea.NewProgram(initialModel(harness))
 	if _, err := p.Run(); err != nil {
