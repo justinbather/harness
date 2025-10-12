@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/atotto/clipboard"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/justinbather/harness/internal/harness"
@@ -30,7 +31,12 @@ type model struct {
 	messagesModel table.Model
 
 	selectedTopic string
+
+	alert        string
+	alertExpires time.Time
 }
+
+var copyAlert = "message copied to your clipboard!"
 
 func initialModel(harness *harness.Harness) model {
 	topicsTable := newTopicsTable(harness.ListTopics())
@@ -40,6 +46,11 @@ func initialModel(harness *harness.Harness) model {
 		topicsModel:   topicsTable,
 		currentScreen: topicsScreen,
 	}
+}
+
+func (m model) setAlert(msg string) {
+	m.alert = msg
+	m.alertExpires = time.Now().Add(5 * time.Second)
 }
 
 func (m model) Init() tea.Cmd {
@@ -58,6 +69,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.messagesModel = newMessageTable(m.harness.ListMessages(m.selectedTopic))
 				m.currentScreen = messagesScreen
 				m.messagesModel.Focus()
+			}
+
+		case "y":
+			if m.currentScreen == messagesScreen {
+				currRow := m.messagesModel.SelectedRow()
+				err := clipboard.WriteAll(currRow[3])
+				if err != nil {
+					panic(err)
+				}
+
+				m.setAlert(copyAlert)
 			}
 
 		case "esc", "ctrl+o": // back
@@ -87,20 +109,25 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
+	alert := ""
+	if time.Now().Before(m.alertExpires) {
+		alert = m.alert
+	}
+
 	switch m.currentScreen {
 	case topicsScreen:
 		header := "Harness"
 		subHeader := "Kafka Topics"
 		footer := "q to quit\nj/k for up/down\n"
 
-		return fmt.Sprintf("%s\n\n%s\n%s\n\n%s", header, subHeader, m.topicsModel.View(), footer)
+		return fmt.Sprintf("%s\n\n%s\n%s\n%s\n\n%s", header, subHeader, alert, m.topicsModel.View(), footer)
 
 	case messagesScreen:
 		header := "Harness"
 		subHeader := m.selectedTopic
-		footer := "q to quit\nj/k for up/down\nctrl+o or esc to go back\n"
+		footer := "q to quit\nj/k for up/down\nctrl+o or esc to go back\ny to copy message\n"
 
-		return fmt.Sprintf("%s\n\n%s\n%s\n\n%s", header, subHeader, m.messagesModel.View(), footer)
+		return fmt.Sprintf("%s\n\n%s\n%s\n%s\n\n%s", header, subHeader, alert, m.messagesModel.View(), footer)
 	}
 
 	return "error"
