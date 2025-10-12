@@ -4,8 +4,8 @@ import "sync"
 
 type Message struct {
 	Data      string
-	Partition int
-	Offset    int
+	Partition string
+	Offset    string
 }
 
 type Topic struct {

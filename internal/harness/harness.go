@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/justinbather/harness/internal/store"
 	"github.com/twmb/franz-go/pkg/kgo"
@@ -104,8 +105,8 @@ func (h *Harness) consume(ctx context.Context) {
 		fetches.EachRecord(func(r *kgo.Record) {
 			msg := store.Message{
 				Data:      string(r.Value),
-				Partition: int(r.Partition),
-				Offset:    int(r.Offset),
+				Partition: strconv.Itoa(int(r.Partition)),
+				Offset:    strconv.Itoa(int(r.Offset)),
 			}
 			h.Store.Insert(r.Topic, msg)
 		})

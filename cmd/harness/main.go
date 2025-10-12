@@ -54,7 +54,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "enter": // defer this to the current view too
 			if m.currentScreen == topicsScreen {
-				m.messagesModel = newMessageTable(m.selectedTopic, m.harness.ListMessages(m.selectedTopic))
+				m.messagesModel = newMessageTable(m.harness.ListMessages(m.selectedTopic))
 				m.selectedTopic = m.topicsModel.SelectedRow()[0]
 				m.currentScreen = messagesScreen
 				m.messagesModel.Focus()
@@ -123,13 +123,13 @@ func newTopicsTable(topicMap map[string]*store.Topic) table.Model {
 	return t
 }
 
-func newMessageTable(topic string, messages []store.Message) table.Model {
+func newMessageTable(messages []store.Message) table.Model {
 	cols := []table.Column{{Title: "#", Width: 5}, {Title: "Partition", Width: 15}, {Title: "Offset", Width: 10}, {Title: "Data", Width: 30}}
 
 	var rows []table.Row
 
 	for i, msg := range messages {
-		rows = append(rows, table.Row{strconv.Itoa(i), strconv.Itoa(msg.Partition), strconv.Itoa(msg.Offset), msg.Data})
+		rows = append(rows, table.Row{strconv.Itoa(i), msg.Partition, msg.Offset, bufferData(msg.Data)})
 	}
 
 	t := table.New(table.WithColumns(cols), table.WithRows(rows), table.WithFocused(true))
@@ -137,6 +137,14 @@ func newMessageTable(topic string, messages []store.Message) table.Model {
 	t.SetHeight(50)
 
 	return t
+}
+
+func bufferData(data string) string {
+	if len(data) < 26 {
+		return data
+	}
+
+	return data[:27] + "..."
 }
 
 func main() {
