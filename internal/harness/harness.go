@@ -12,7 +12,8 @@ import (
 )
 
 type Harness struct {
-	kc *kgo.Client
+	Brokers []string
+	kc      *kgo.Client
 	// should create a seperate querier iface to prevent external mutation
 	// or just add methods to Harness
 	store.Store
@@ -41,7 +42,7 @@ func New(brokers ...string) (*Harness, error) {
 
 	store := store.NewEphemeralStore(topics...)
 
-	h := &Harness{kc: kc, Store: store}
+	h := &Harness{kc: kc, Brokers: brokers, Store: store}
 	return h, nil
 }
 

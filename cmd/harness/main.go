@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 	"time"
 
@@ -63,7 +64,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// key press
 	case tea.KeyMsg: // only process globally applicable events here, like quit etc, else defer to the current view
 		switch msg.String() {
-		case "enter": // defer this to the current view too
+		case "enter":
 			if m.currentScreen == topicsScreen {
 				m.selectedTopic = m.topicsModel.SelectedRow()[0]
 				m.messagesModel = newMessageTable(m.harness.ListMessages(m.selectedTopic))
@@ -85,7 +86,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "esc", "ctrl+o": // back
 			if m.currentScreen == messagesScreen {
 				m.currentScreen = topicsScreen
-				return m, nil
+				m.topicsModel = newTopicsTable(m.harness.ListTopics())
+				m.topicsModel.Focus()
 			}
 
 		case "ctrl+c", "q":
@@ -114,16 +116,21 @@ func (m model) View() string {
 		alert = m.alert
 	}
 
+	brokers := ""
+	for _, b := range m.harness.Brokers {
+		brokers += b + " "
+	}
+
 	switch m.currentScreen {
 	case topicsScreen:
-		header := "Harness"
+		header := "Harness " + brokers
 		subHeader := "Kafka Topics"
 		footer := "q to quit\nj/k for up/down\n"
 
 		return fmt.Sprintf("%s\n\n%s\n%s\n%s\n\n%s", header, subHeader, alert, m.topicsModel.View(), footer)
 
 	case messagesScreen:
-		header := "Harness"
+		header := "Harness " + brokers
 		subHeader := m.selectedTopic
 		footer := "q to quit\nj/k for up/down\nctrl+o or esc to go back\ny to copy message\n"
 
@@ -176,11 +183,19 @@ func bufferData(data string) string {
 }
 
 func main() {
+	defaultKafkaHost := "localhost:9092"
+	cliArg := ""
+
+	if len(os.Args) < 2 {
+		cliArg = defaultKafkaHost
+	} else {
+		cliArg = os.Args[1]
+	}
 
 	ctx := context.Background()
 	log, ctx := logger.FromCtx(ctx)
 
-	harness, err := harness.New("localhost:9092")
+	harness, err := harness.New(cliArg)
 	if err != nil {
 		panic(err)
 	}
