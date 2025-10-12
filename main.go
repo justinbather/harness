@@ -16,6 +16,8 @@ import (
 	"go.uber.org/zap"
 )
 
+type refreshMsg struct{}
+
 type screen int
 
 const (
@@ -49,17 +51,33 @@ func initialModel(harness *harness.Harness) model {
 	}
 }
 
-func (m model) setAlert(msg string) {
+func (m *model) setAlert(msg string) {
 	m.alert = msg
 	m.alertExpires = time.Now().Add(5 * time.Second)
 }
 
 func (m model) Init() tea.Cmd {
+	// return m.poll() // bit tricky with map reordering and cursor position, will need more work before adding again
 	return nil
+}
+
+// avoids wipinig old state on refresh like cursor position etc
+func (m *model) refreshTopicsList() {
+	topics := m.harness.ListTopics()
+	rows := make([]table.Row, len(topics))
+	for _, t := range topics {
+		rows = append(rows, table.Row{t.Name, strconv.Itoa(t.Partitions), strconv.Itoa(t.MessageCount)})
+	}
+
+	m.topicsModel.SetRows(rows)
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+
+	case refreshMsg:
+		m.refreshTopicsList()
+		return m, m.poll() // continue polling
 
 	// key press
 	case tea.KeyMsg: // only process globally applicable events here, like quit etc, else defer to the current view
@@ -152,7 +170,7 @@ func newTopicsTable(topicMap map[string]*store.Topic) table.Model {
 
 	t := table.New(table.WithColumns(columns), table.WithRows(rows), table.WithFocused(true))
 
-	t.SetHeight(10)
+	t.SetHeight(30)
 
 	return t
 }
@@ -172,6 +190,12 @@ func newMessageTable(messages []store.Message) table.Model {
 	t.SetHeight(50)
 
 	return t
+}
+
+func (m model) poll() tea.Cmd {
+	return tea.Tick(2*time.Second, func(t time.Time) tea.Msg {
+		return refreshMsg{}
+	})
 }
 
 func bufferData(data string) string {
