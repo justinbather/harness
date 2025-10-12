@@ -10,6 +10,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/justinbather/harness/internal/harness"
 	"github.com/justinbather/harness/internal/logger"
+	"github.com/justinbather/harness/internal/store"
 	"go.uber.org/zap"
 )
 
@@ -23,10 +24,10 @@ const (
 type model struct {
 	harness *harness.Harness
 
-	screen screen
+	currentScreen screen
 
-	topics   table.Model
-	messages table.Model
+	topicsModel   table.Model
+	messagesModel table.Model
 
 	selectedTopic string
 }
@@ -35,9 +36,9 @@ func initialModel(harness *harness.Harness) model {
 	topicsTable := newTopicsTable(harness.ListTopics())
 
 	return model{
-		harness: harness,
-		topics:  topicsTable,
-		screen:  topicsScreen,
+		harness:       harness,
+		topicsModel:   topicsTable,
+		currentScreen: topicsScreen,
 	}
 }
 
@@ -52,10 +53,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg: // only process globally applicable events here, like quit etc, else defer to the current view
 		switch msg.String() {
 		case "enter": // defer this to the current view too
+			if m.currentScreen == topicsScreen {
+				m.messagesModel = newMessageTable(m.selectedTopic, []store.Message{{
+					Metadata: map[string]any{},
+					Data:     "",
+				}, {
+					Metadata: map[string]any{},
+					Data:     "",
+				}})
+				m.selectedTopic = m.topicsModel.SelectedRow()[0]
+				m.currentScreen = messagesScreen
+				m.messagesModel.Focus()
+			}
 
 		case "esc", "ctrl+o": // back
-			if m.screen == messagesScreen {
-
+			if m.currentScreen == messagesScreen {
+				m.currentScreen = topicsScreen
+				return m, nil
 			}
 
 		case "ctrl+c", "q":
@@ -64,25 +78,36 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	}
 
-	switch m.screen {
+	switch m.currentScreen {
 	case topicsScreen:
 		var cmd tea.Cmd
-		m.topics, cmd = m.topics.Update(msg)
+		m.topicsModel, cmd = m.topicsModel.Update(msg)
 		return m, cmd
-		// need messages screen here
+
+	case messagesScreen:
+		var cmd tea.Cmd
+		m.messagesModel, cmd = m.messagesModel.Update(msg)
+		return m, cmd
 	}
 
 	return m, nil
 }
 
 func (m model) View() string {
-	switch m.screen {
+	switch m.currentScreen {
 	case topicsScreen:
 		header := "Harness"
 		subHeader := "Kafka Topics"
 		footer := "q to quit\nj/k for up/down\n"
 
-		return fmt.Sprintf("%s\n\n%s\n%s\n\n%s", header, subHeader, m.topics.View(), footer)
+		return fmt.Sprintf("%s\n\n%s\n%s\n\n%s", header, subHeader, m.topicsModel.View(), footer)
+
+	case messagesScreen:
+		header := "Harness"
+		subHeader := m.selectedTopic
+		footer := "q to quit\nj/k for up/down\nctrl+o or esc to go back\n"
+
+		return fmt.Sprintf("%s\n\n%s\n%s\n\n%s", header, subHeader, m.messagesModel.View(), footer)
 	}
 
 	return "error"
@@ -98,6 +123,22 @@ func newTopicsTable(topicMap map[string]int) table.Model {
 	}
 
 	t := table.New(table.WithColumns(columns), table.WithRows(rows), table.WithFocused(true))
+
+	t.SetHeight(10)
+
+	return t
+}
+
+func newMessageTable(topic string, messages []store.Message) table.Model {
+	cols := []table.Column{{Title: "#", Width: 5}}
+
+	var rows []table.Row
+
+	for i, _ := range messages {
+		rows = append(rows, table.Row{strconv.Itoa(i)})
+	}
+
+	t := table.New(table.WithColumns(cols), table.WithRows(rows), table.WithFocused(true))
 
 	t.SetHeight(10)
 
