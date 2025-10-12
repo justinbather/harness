@@ -3,43 +3,58 @@ package store
 import "sync"
 
 type Message struct {
-	Metadata map[string]any
-	Data     string
+	Data      string
+	Partition int
+	Offset    int
+}
+
+type Topic struct {
+	Name         string
+	Partitions   int
+	MessageCount int
 }
 
 type store struct {
 	mu sync.Mutex
 
-	s map[string][]Message
+	messageStorage map[string][]Message
 	// topics and the message counts
-	metadata map[string]int
+	topicStorage map[string]*Topic
 }
 
 type Store interface {
-	ListTopics() map[string]int
+	ListTopics() map[string]*Topic
+
 	Insert(topic string, msg Message)
+
+	ListMessages(topic string) []Message
 }
 
-func NewEphemeralStore(tables ...string) Store {
-	s := make(map[string][]Message)
-	md := make(map[string]int)
-	for _, t := range tables {
+func NewEphemeralStore(topics ...*Topic) Store {
+	messageStore := make(map[string][]Message)
+	topicStore := make(map[string]*Topic)
+	for _, t := range topics {
 		// pre allocate 100 for now
-		s[t] = make([]Message, 0, 100)
-		md[t] = 0
+		messageStore[t.Name] = make([]Message, 0, 100)
+		copy := *t
+		topicStore[t.Name] = &copy
 	}
 
-	return &store{s: s, metadata: md}
+	return &store{messageStorage: messageStore, topicStorage: topicStore}
 }
 
-func (s *store) ListTopics() map[string]int {
-	return s.metadata
+func (s *store) ListTopics() map[string]*Topic {
+	return s.topicStorage
 }
 
 func (s *store) Insert(topic string, msg Message) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.s[topic] = append(s.s[topic], msg)
-	s.metadata[topic] += 1
+	s.messageStorage[topic] = append(s.messageStorage[topic], msg)
+	s.topicStorage[topic].MessageCount += 1
+}
+
+func (s *store) ListMessages(topic string) []Message {
+	return s.messageStorage[topic]
 }

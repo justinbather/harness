@@ -54,13 +54,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "enter": // defer this to the current view too
 			if m.currentScreen == topicsScreen {
-				m.messagesModel = newMessageTable(m.selectedTopic, []store.Message{{
-					Metadata: map[string]any{},
-					Data:     "",
-				}, {
-					Metadata: map[string]any{},
-					Data:     "",
-				}})
+				m.messagesModel = newMessageTable(m.selectedTopic, m.harness.ListMessages(m.selectedTopic))
 				m.selectedTopic = m.topicsModel.SelectedRow()[0]
 				m.currentScreen = messagesScreen
 				m.messagesModel.Focus()
@@ -75,7 +69,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c", "q":
 			return m, tea.Quit
 		}
-
 	}
 
 	switch m.currentScreen {
@@ -113,13 +106,14 @@ func (m model) View() string {
 	return "error"
 }
 
-func newTopicsTable(topicMap map[string]int) table.Model {
-	columns := []table.Column{{Title: "Topic", Width: 30}, {Title: "# Messages", Width: 30}}
+func newTopicsTable(topicMap map[string]*store.Topic) table.Model {
+	columns := []table.Column{{Title: "Topic", Width: 30}, {Title: "Partitions", Width: 30}, {Title: "# Messages", Width: 30}}
 	var rows []table.Row
 
-	for topic, msgs := range topicMap {
-		conv := strconv.Itoa(msgs)
-		rows = append(rows, table.Row{topic, conv})
+	for _, topic := range topicMap {
+		convertedMsgCount := strconv.Itoa(topic.MessageCount)
+		convertedPartitionCount := strconv.Itoa(topic.Partitions)
+		rows = append(rows, table.Row{topic.Name, convertedPartitionCount, convertedMsgCount})
 	}
 
 	t := table.New(table.WithColumns(columns), table.WithRows(rows), table.WithFocused(true))
@@ -130,17 +124,17 @@ func newTopicsTable(topicMap map[string]int) table.Model {
 }
 
 func newMessageTable(topic string, messages []store.Message) table.Model {
-	cols := []table.Column{{Title: "#", Width: 5}}
+	cols := []table.Column{{Title: "#", Width: 5}, {Title: "Partition", Width: 15}, {Title: "Offset", Width: 10}, {Title: "Data", Width: 30}}
 
 	var rows []table.Row
 
-	for i, _ := range messages {
-		rows = append(rows, table.Row{strconv.Itoa(i)})
+	for i, msg := range messages {
+		rows = append(rows, table.Row{strconv.Itoa(i), strconv.Itoa(msg.Partition), strconv.Itoa(msg.Offset), msg.Data})
 	}
 
 	t := table.New(table.WithColumns(cols), table.WithRows(rows), table.WithFocused(true))
 
-	t.SetHeight(10)
+	t.SetHeight(50)
 
 	return t
 }

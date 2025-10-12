@@ -31,7 +31,12 @@ func New(brokers ...string) (*Harness, error) {
 		return nil, err
 	}
 
-	kc.AddConsumeTopics(topics...)
+	var topicNames []string
+	for _, topic := range topics {
+		topicNames = append(topicNames, topic.Name)
+	}
+
+	kc.AddConsumeTopics(topicNames...)
 
 	store := store.NewEphemeralStore(topics...)
 
@@ -55,8 +60,8 @@ func (h *Harness) Shutdown(ctx context.Context) {
 	}
 }
 
-func fetchTopics(ctx context.Context, kc *kgo.Client) ([]string, error) {
-	var topics []string
+func fetchTopics(ctx context.Context, kc *kgo.Client) ([]*store.Topic, error) {
+	var topics []*store.Topic
 
 	req := kmsg.NewMetadataRequest()
 	req.Topics = nil // fetches all topics
@@ -75,7 +80,13 @@ func fetchTopics(ctx context.Context, kc *kgo.Client) ([]string, error) {
 			continue
 		}
 
-		topics = append(topics, *topic.Topic)
+		t := &store.Topic{
+			Name:         *topic.Topic,
+			Partitions:   len(topic.Partitions),
+			MessageCount: 0,
+		}
+
+		topics = append(topics, t)
 	}
 
 	if len(topics) == 0 {
@@ -92,7 +103,9 @@ func (h *Harness) consume(ctx context.Context) {
 		fetches := h.kc.PollFetches(ctx)
 		fetches.EachRecord(func(r *kgo.Record) {
 			msg := store.Message{
-				Data: string(r.Value),
+				Data:      string(r.Value),
+				Partition: int(r.Partition),
+				Offset:    int(r.Offset),
 			}
 			h.Store.Insert(r.Topic, msg)
 		})
