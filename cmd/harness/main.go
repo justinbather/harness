@@ -54,8 +54,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "enter": // defer this to the current view too
 			if m.currentScreen == topicsScreen {
-				m.messagesModel = newMessageTable(m.harness.ListMessages(m.selectedTopic))
 				m.selectedTopic = m.topicsModel.SelectedRow()[0]
+				m.messagesModel = newMessageTable(m.harness.ListMessages(m.selectedTopic))
 				m.currentScreen = messagesScreen
 				m.messagesModel.Focus()
 			}
