@@ -150,6 +150,7 @@ func newTopicsTable(topicMap map[string]*store.Topic) table.Model {
 	return t
 }
 
+// cache this table and check if any new messages have been consumed into this topic
 func newMessageTable(messages []store.Message) table.Model {
 	cols := []table.Column{{Title: "#", Width: 5}, {Title: "Partition", Width: 15}, {Title: "Offset", Width: 10}, {Title: "Data", Width: 30}}
 
@@ -186,8 +187,8 @@ func main() {
 
 	harness.Start(ctx)
 	defer harness.Shutdown(ctx)
-	// janky way to wa
-	time.Sleep(100 * time.Millisecond)
+	// not sure why if we dont sleep we get 0 message count in topic list
+	time.Sleep(20 * time.Millisecond)
 
 	p := tea.NewProgram(initialModel(harness), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
