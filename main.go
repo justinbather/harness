@@ -93,7 +93,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "y":
 			if m.currentScreen == messagesScreen {
 				currRow := m.messagesModel.SelectedRow()
-				err := clipboard.WriteAll(currRow[3])
+
+				message, err := m.harness.GetMessage(currRow[OFFSET], m.selectedTopic)
+				if err != nil {
+					panic(err)
+				}
+
+				err = clipboard.WriteAll(string(message.Data))
 				if err != nil {
 					panic(err)
 				}
@@ -175,14 +181,23 @@ func newTopicsTable(topicMap map[string]*store.Topic) table.Model {
 	return t
 }
 
+type MessageRow int
+
+const (
+	MSG_ROW_IDX MessageRow = iota
+	PARTITION
+	OFFSET
+	DATA_LENGTH
+)
+
 // cache this table and check if any new messages have been consumed into this topic
 func newMessageTable(messages []store.Message) table.Model {
-	cols := []table.Column{{Title: "#", Width: 5}, {Title: "Partition", Width: 15}, {Title: "Offset", Width: 10}, {Title: "Data", Width: 30}}
+	cols := []table.Column{{Title: "#", Width: 5}, {Title: "Partition", Width: 25}, {Title: "Offset", Width: 10}, {Title: "Data Length", Width: 30}}
 
 	var rows []table.Row
 
 	for i, msg := range messages {
-		rows = append(rows, table.Row{strconv.Itoa(i), msg.Partition, msg.Offset, bufferData(msg.Data)})
+		rows = append(rows, table.Row{strconv.Itoa(i), msg.Partition, msg.Offset, strconv.Itoa(len(msg.Data))})
 	}
 
 	t := table.New(table.WithColumns(cols), table.WithRows(rows), table.WithFocused(true))

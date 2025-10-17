@@ -105,7 +105,7 @@ func (h *Harness) consume(ctx context.Context) {
 		fetches := h.kc.PollFetches(ctx)
 		fetches.EachRecord(func(r *kgo.Record) {
 			msg := store.Message{
-				Data:      string(r.Value),
+				Data:      r.Value,
 				Partition: strconv.Itoa(int(r.Partition)),
 				Offset:    strconv.Itoa(int(r.Offset)),
 			}

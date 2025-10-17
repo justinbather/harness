@@ -2,13 +2,19 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"encoding/json"
 	"os"
+	"strconv"
 
 	"github.com/justinbather/harness/internal/logger"
 	"github.com/twmb/franz-go/pkg/kgo"
 	"go.uber.org/zap"
 )
+
+type msg struct {
+	Id   string `json:"id"`
+	Name string `json:"name"`
+}
 
 func main() {
 	ctx := context.Background()
@@ -28,10 +34,19 @@ func main() {
 	log.Info("publishing...")
 	for i := range 10 {
 		for _, topic := range topics {
+			bytes, err := json.Marshal(msg{
+				Id:   strconv.Itoa(i),
+				Name: "alksdjklajdflkajflkjflkasjf",
+			})
+			if err != nil {
+				log.Error("marshalling", zap.Error(err))
+			}
+
 			r := &kgo.Record{
-				Value: []byte(fmt.Sprintf("message %d", i)),
+				Value: bytes,
 				Topic: topic,
 			}
+
 			client.Produce(ctx, r, func(r *kgo.Record, err error) {
 				if err != nil {
 					log.Error("producing", zap.Error(err))

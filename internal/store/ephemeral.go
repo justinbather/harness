@@ -1,9 +1,12 @@
 package store
 
-import "sync"
+import (
+	"errors"
+	"sync"
+)
 
 type Message struct {
-	Data      string
+	Data      []byte
 	Partition string
 	Offset    string
 }
@@ -28,6 +31,8 @@ type Store interface {
 	Insert(topic string, msg Message)
 
 	ListMessages(topic string) []Message
+
+	GetMessage(id, topic string) (Message, error)
 }
 
 func NewEphemeralStore(topics ...*Topic) Store {
@@ -57,4 +62,15 @@ func (s *store) Insert(topic string, msg Message) {
 
 func (s *store) ListMessages(topic string) []Message {
 	return s.messageStorage[topic]
+}
+
+func (s *store) GetMessage(offset, topic string) (Message, error) {
+	t := s.messageStorage[topic]
+	for _, msg := range t {
+		if msg.Offset == offset {
+			return msg, nil
+		}
+	}
+
+	return Message{}, errors.New("message not found")
 }
